@@ -21,14 +21,13 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace PercentConverter
 {
     public class Table
     {
         private List<Spectrum> _data;
-        private List<string> _columnNames;
+        private string[] _columnNames;
 
         public Table(string page)
         {
@@ -39,7 +38,7 @@ namespace PercentConverter
             var lines = pageLower
                 .Split(new[] { @"<tr>", @"</tr>" }, StringSplitOptions.RemoveEmptyEntries)
                 .Skip(1)
-                .ToList();
+                .ToArray();
 
             _columnNames = lines
                 .First()
@@ -47,9 +46,9 @@ namespace PercentConverter
                 .Skip(2)
                 .Where(x => !x.Contains("total"))
                 .Select(str => char.ToUpper(str[0]) + str.Substring(1))
-                .ToList();
+                .ToArray();
 
-            var atomicWeights = _columnNames.Select(e => Element.Table[e].AtomicWeight).ToList();
+            var atomicWeights = _columnNames.Select(e => Element.Table[e].AtomicWeight).ToArray();
 
             var initialUnits = lines
                 .Where(x => x.Contains("results in"))
@@ -63,9 +62,9 @@ namespace PercentConverter
                 .Select(x => x
                         .Split(new[] { "<td>" }, StringSplitOptions.RemoveEmptyEntries)
                         .Skip(2)
-                        .Take(atomicWeights.Count)
+                        .Take(atomicWeights.Length)
                         .Select(a => double.Parse(a))
-                        .ToList())
+                        .ToArray())
                 .Select(x => new Spectrum(atomicWeights, x, initialUnits))
                 .ToList();
         }
@@ -77,7 +76,7 @@ namespace PercentConverter
                 + MakeTable(x => x.PointWeight, Units.WeightPercent);
         }
 
-        public string MakeTable(Func<Spectrum, List<double>> selector, Units unit)
+        public string MakeTable(Func<Spectrum, double[]> selector, Units unit)
         {
             string sep = "\t";
             string lineSep = "\n";
@@ -89,7 +88,7 @@ namespace PercentConverter
             foreach (var row in _data)
             {
                 res += (i++).ToString() + sep;
-                res += string.Join(sep, selector(row));
+                res += string.Join(sep, selector(row).Select(x => x.ToString()).ToArray());
                 res += lineSep;
             }
             res += lineSep;

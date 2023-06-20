@@ -21,26 +21,25 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace PercentConverter
 {
     public class Spectrum
     {
-        public List<double> PointAtomic { get; private set; }
-        public List<double> PointWeight { get; private set; }
+        public double[] PointAtomic { get; private set; }
+        public double[] PointWeight { get; private set; }
 
-        public Spectrum(List<double> atomicWeights, List<double> values, Units initialUnits)
+        public Spectrum(double[] atomicWeights, double[] values, Units initialUnits)
         {
-            if (values.Count < atomicWeights.Count)
+            if (values.Length < atomicWeights.Length)
                 throw new ArgumentException();                       
 
             PointAtomic = ConvertToAtomic(atomicWeights, values, initialUnits);
             PointWeight = ConvertToWeight(atomicWeights, values, initialUnits);
         }
 
-        private List<double> ConvertToAtomic(List<double> atomicWeights, List<double> values, Units initialUnits)
+        private double[] ConvertToAtomic(double[] atomicWeights, double[] values, Units initialUnits)
         {
             if (initialUnits == Units.AtomicPercent)
                 return values;
@@ -48,7 +47,7 @@ namespace PercentConverter
                 return Convert(atomicWeights, values, (a, b) => a / b);
         }
 
-        private List<double> ConvertToWeight(List<double> atomicWeights, List<double> values, Units initialUnits)
+        private double[] ConvertToWeight(double[] atomicWeights, double[] values, Units initialUnits)
         {
             if (initialUnits == Units.WeightPercent)
                 return values;
@@ -56,19 +55,24 @@ namespace PercentConverter
                 return Convert(atomicWeights, values, (a, b) => a * b);
         }
 
-        private List<double> Convert(List<double> atomicWeights, List<double> values,
+        private double[] Convert(double[] atomicWeights, double[] values,
             Func<double, double, double> op)
         {
-            if (atomicWeights.Count != values.Count)
+            if (atomicWeights.Length != values.Length)
                 throw new ArgumentException();
-            var temp = values.Zip(atomicWeights, op);
+            var temp = new List<double>();
+            for ( int i = 0; i < atomicWeights.Length; i++ )
+            {
+                temp.Add(op(values[i], atomicWeights[i]));
+            }
+            //var temp = values.Zip(atomicWeights, op);
             var sum = temp.Sum();
             if (sum <= 0)
                 throw new Exception("Sum <= 0");
             return temp
                 .Select(w => 100 * w / sum)
                 .Select(x => Math.Round(x, 2))
-                .ToList();
+                .ToArray();
         }
 
     }
