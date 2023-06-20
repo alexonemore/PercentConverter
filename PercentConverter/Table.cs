@@ -19,8 +19,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
+using System.Threading;
 
 namespace PercentConverter
 {
@@ -57,13 +59,14 @@ namespace PercentConverter
                         ? Units.AtomicPercent : Units.Other)
                 .First();
 
+            var culture = CultureInfo.CreateSpecificCulture("en-US");
             _data = lines
                 .Where(x => x.Contains("yes"))
                 .Select(x => x
                         .Split(new[] { "<td>" }, StringSplitOptions.RemoveEmptyEntries)
                         .Skip(2)
                         .Take(atomicWeights.Length)
-                        .Select(a => double.Parse(a))
+                        .Select(a => double.Parse(a, culture))
                         .ToArray())
                 .Select(x => new Spectrum(atomicWeights, x, initialUnits))
                 .ToList();
