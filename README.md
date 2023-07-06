@@ -1,4 +1,4 @@
 # PercentConverter
 Just drop your .htm files to window
 
-![video](https://github.com/alexonemore/PercentConverter/assets/78875946/6210fd3d-f746-4914-9d44-0966d6d416c0)
+<video src='https://github.com/alexonemore/PercentConverter/assets/78875946/15834d2b-171f-4403-bda2-01a78d22568e'/>
