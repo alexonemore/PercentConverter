@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Converter</title>
+    <style>
+        body {
+            font-family: sans-serif;
+        }
+
+        .table {
+            display: inline-block;
+            margin: 20px;
+            border: none;
+            border-collapse: collapse;
+        }
+
+        .table th {
+            font-weight: bold;
+            padding: 5px;
+            background: #efefef;
+            border: 1px solid #dddddd;
+        }
+
+        .table td {
+            text-align: right;
+            border: 1px solid #dddddd;
+            padding: 5px;
+        }
+
+        .table tr:hover {
+            background-color: antiquewhite;
+        }
+
+        .table caption {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+    </style>
+    <script>
+        const AtomicWeights = { "H": 1.00794, "He": 4.002602, "Li": 6.941, "Be": 9.012182, "B": 10.811, "C": 12.0107, "N": 14.00674, "O": 15.9994, "F": 18.9984032, "Ne": 20.1797, "Na": 22.98977, "Mg": 24.305, "Al": 26.981538, "Si": 28.0855, "P": 30.973762, "S": 32.066, "Cl": 35.4527, "Ar": 39.948, "K": 39.0983, "Ca": 40.078, "Sc": 44.95591, "Ti": 47.867, "V": 50.9415, "Cr": 51.9961, "Mn": 54.938049, "Fe": 55.845, "Co": 58.9332, "Ni": 58.6934, "Cu": 63.546, "Zn": 65.39, "Ga": 69.723, "Ge": 72.61, "As": 74.9216, "Se": 78.96, "Br": 79.904, "Kr": 83.8, "Rb": 85.4678, "Sr": 87.62, "Y": 88.90585, "Zr": 91.224, "Nb": 92.90638, "Mo": 95.94, "Tc": 98, "Ru": 101.07, "Rh": 102.9055, "Pd": 106.42, "Ag": 107.8682, "Cd": 112.411, "In": 114.818, "Sn": 118.71, "Sb": 121.76, "Te": 127.6, "I": 126.90447, "Xe": 131.29, "Cs": 132.90545, "Ba": 137.327, "La": 138.9055, "Ce": 140.116, "Pr": 140.90765, "Nd": 144.24, "Pm": 145, "Sm": 150.36, "Eu": 151.964, "Gd": 157.25, "Tb": 158.92534, "Dy": 162.5, "Ho": 164.93032, "Er": 167.26, "Tm": 168.93421, "Yb": 173.04, "Lu": 174.967, "Hf": 178.49, "Ta": 180.9479, "W": 183.84, "Re": 186.207, "Os": 190.23, "Ir": 192.217, "Pt": 195.078, "Au": 196.96655, "Hg": 200.59, "Tl": 204.3833, "Pb": 207.2, "Bi": 208.98038, "Po": 209, "At": 210, "Rn": 222, "Fr": 223, "Ra": 226.0254, "Ac": 227.0278, "Th": 232.0381, "Pa": 231.03588, "U": 238.0289, "Np": 237.0482, "Pu": 244, "Am": 243, "Cm": 247, "Bk": 247, "Cf": 251, "Es": 252, "Fm": 257, "Md": 258, "No": 259, "Lr": 260, "Unq": 261, "Unp": 262, "Unh": 263, "D": 2.014101778, "T": 3.01604928 };
+
+        function GetElements(htmlDocument) {
+            var table = htmlDocument.getElementsByTagName("table");
+            if (table.length != 1)
+                return;
+            var rows = table[0].getElementsByTagName("tr");
+            var header = rows[0].getElementsByTagName("td");
+            if (header[0].innerText !== "Spectrum")
+                return;
+            var elementsList = [];
+            for (var i = 2; i < header.length; ++i) {
+                var elementName = header[i].innerText;
+                if (elementName === "Total" || elementName === "")
+                    continue;
+                elementsList.push(elementName);
+            }
+            return elementsList;
+        }
+
+        function GetAtomicWeights(elementsNames) {
+            return elementsNames.map(elementName => AtomicWeights[elementName]);
+        }
+
+        function GetAmounts(elementsCount, htmlDocument) {
+            var table = htmlDocument.getElementsByTagName("table");
+            if (table.length != 1)
+                return;
+            var rows = table[0].getElementsByTagName("tr");
+            var amounts = new Array();
+            var index = 0;
+            for (var i = 1; i < rows.length; ++i) {
+                var cells = rows[i].getElementsByTagName("td");
+                if (!cells[1].innerText.includes("Yes"))
+                    continue;
+                amounts[index] = new Array();
+                for (var j = 2; j < elementsCount + 2; ++j) {
+                    var value = parseFloat(cells[j].innerText);
+                    if (isNaN(value)) value = 0;
+                    amounts[index].push(value);
+                }
+                index++;
+            }
+            return amounts;
+        }
+
+        function GetUnits(htmlDocument) {
+            for (p of htmlDocument.getElementsByTagName("p")) {
+                var line = p.innerText;
+                if (!line.includes("All results in"))
+                    continue;
+                if (line.includes("weight")) return "weight";
+                if (line.includes("atomic")) return "atomic";
+                return "other";
+            }
+        }
+
+        function FileProcessing(file) {
+            var reader = new FileReader();
+            var parser = new DOMParser();
+            reader.addEventListener(
+                "load",
+                () => {
+                    var documentString = event.target.result;
+                    // Интерпретируем содержимое файла как HTML
+                    var doc = parser.parseFromString(documentString, "text/html");
+                    // Теперь у вас есть доступ к документу HTML и можете выполнять различные операции над ним
+                    var htmlDocument = doc.documentElement;
+                    var tables = DocumentProcessing(htmlDocument);
+                    var newPage = MakeDivTable(tables);
+                    AddTab(file.name, newPage);
+                }
+            );
+
+            if (file) {
+                reader.readAsText(file);
+            }
+        }
+
+        function MakeDivTable(tables) {
+            var divTables = document.createElement("div");
+
+            var atomicTable = CreateTableFromMatrix(tables.elementsNames, tables.atomic);
+            atomicTable.getElementsByTagName('caption')[0].textContent = "Results in atomic %";
+            atomicTable.className = 'table';
+            divTables.appendChild(atomicTable);
+
+            var weightTable = CreateTableFromMatrix(tables.elementsNames, tables.weight);
+            weightTable.getElementsByTagName('caption')[0].textContent = "Results in weight %";
+            weightTable.className = 'table';
+            divTables.appendChild(weightTable);
+
+            return divTables;
+        }
+
+        function CreateTableFromMatrix(header, matrix) {
+            var table = document.createElement('table');
+            var caption = document.createElement('caption');
+            table.appendChild(caption);
+            var rowHeader = document.createElement('tr');
+            var cell = document.createElement('th');
+            cell.textContent = "Spectrum";
+            rowHeader.appendChild(cell);
+            for (var i = 0; i < header.length; ++i) {
+                var cell = document.createElement('th');
+                cell.textContent = header[i];
+                rowHeader.appendChild(cell);
+            }
+            table.appendChild(rowHeader);
+
+            for (var i = 0; i < matrix.length; i++) {
+                var row = document.createElement('tr');
+                var cell = document.createElement('td');
+                cell.textContent = i + 1;
+                row.appendChild(cell);
+                for (var j = 0; j < matrix[i].length; j++) {
+                    var cell = document.createElement('td');
+                    cell.textContent = parseFloat(matrix[i][j]).toFixed(2);
+                    row.appendChild(cell);
+                }
+                table.appendChild(row);
+            }
+            return table;
+        }
+
+        function DocumentProcessing(htmlDocument) {
+            var elements = GetElements(htmlDocument);
+            var elementsWeight = GetAtomicWeights(elements);
+            var amounts = GetAmounts(elements.length, htmlDocument);
+            var unit = GetUnits(htmlDocument);
+
+            var atomicValues = ConvertToAtomic(elementsWeight, amounts, unit);
+            var weightValues = ConvertToWeight(elementsWeight, amounts, unit);
+
+            // console.log(atomicValues);
+            // console.log(weightValues);
+
+            return { elementsNames: elements, atomic: atomicValues, weight: weightValues };
+        }
+
+        function ConvertToAtomic(elementsWeight, amounts, unit) {
+            if (unit === "atomic")
+                return amounts;
+            else
+                return Convert(elementsWeight, amounts, (a, b) => a / b);
+        }
+
+        function ConvertToWeight(elementsWeight, amounts, unit) {
+            if (unit === "weight")
+                return amounts;
+            else
+                return Convert(elementsWeight, amounts, (a, b) => a * b);
+        }
+
+        function Convert(elementsWeight, amounts, op) {
+            var temp = [];
+            for (var i = 0; i < amounts.length; ++i) {
+                var line = [];
+                for (var j = 0; j < amounts[i].length; ++j) {
+                    line.push(op(amounts[i][j], elementsWeight[j]));
+                }
+                temp.push(line);
+            }
+            var sums = [];
+            for (var i = 0; i < temp.length; ++i) {
+                sums.push(sumArray(temp[i]));
+            }
+            var res = [];
+            for (var i = 0; i < temp.length; ++i) {
+                var line = [];
+                for (var j = 0; j < temp[i].length; ++j) {
+                    line.push(100 * temp[i][j] / sums[i]);
+                }
+                res.push(line);
+            }
+            return res;
+        }
+
+        function sumArray(array) {
+            var sum = 0;
+            for (let i = 0; i < array.length; i++) {
+                sum += array[i];
+            }
+            return sum;
+        }
+    </script>
+</head>
+
+<body>
+    <div id="dropzone">
+        Перетащите файлы сюда или щёлкните для выбора ...
+        <input type="file" accept=".htm,.html" id="fileInput" multiple style="display: none;">
+    </div>
+    <style>
+        #dropzone {
+            width: 90%;
+            height: 1rem;
+            border: 2px dashed gray;
+            border-radius: 5px;
+            background-color: seashell;
+            text-align: center;
+            font-size: large;
+            padding: 2rem;
+            margin: auto;
+            cursor: pointer;
+        }
+    </style>
+    <script>
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('fileInput');
+
+        dropzone.addEventListener('click', () => fileInput.click());
+        dropzone.addEventListener('dragover', e => e.preventDefault());
+        dropzone.addEventListener('dragleave', e => e.preventDefault());
+        dropzone.addEventListener('drop', e => { e.preventDefault(); handleFiles(e.dataTransfer.files); });
+        fileInput.addEventListener('change', e => handleFiles(e.target.files));
+
+        function handleFiles(files) {
+            for (var file of files) {
+                if (file.type == "text/html") {
+                    FileProcessing(file);
+                    // console.log('File name:', file.name);
+                    // console.log('File type:', file.type);
+                    // console.log('File size:', file.size, 'bytes');
+                }
+            }
+        }
+    </script>
+
+    <div id="tabs">
+        <ul id="tab-list">
+            <!-- <li class="tab active">Вкладка 1</li> -->
+            <!-- <li class="tab">Вкладка 2</li> -->
+            <!-- <li class="tab">Вкладка 3</li> -->
+        </ul>
+    </div>
+    <div id="tab-content-list">
+        <!-- <div class="tab-content active">Содержимое вкладки 1</div> -->
+        <!-- <div class="tab-content">Содержимое вкладки 2</div> -->
+        <!-- <div class="tab-content">Содержимое вкладки 3</div> -->
+    </div>
+    <style>
+        #tabs {
+            margin-top: 5px;
+        }
+
+        #tab-list {
+            list-style-type: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .tab {
+            display: inline-block;
+            padding: 10px 20px;
+            margin-left: 2px;
+            border-top-left-radius: 5px;
+            border-top-right-radius: 5px;
+            background-color: #f1f1f1;
+            cursor: pointer;
+        }
+
+        .tab:hover {
+            background-color: #ddd;
+        }
+
+        .tab.active {
+            background-color: #ccc;
+        }
+
+        #add-tab-button {
+            margin-top: 10px;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 20px;
+            border: 1px solid #ccc;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+    <script>
+        function AddTab(tabName, newTable) {
+            var numTabs = document.getElementsByClassName('tab').length;
+            var newTab = document.createElement('li');
+            newTab.className = 'tab';
+            newTab.textContent = tabName;
+            // newTab.addEventListener("click", e => console.log(numTabs));
+            newTab.addEventListener('click', e => changeTab(numTabs));
+            document.getElementById('tab-list').appendChild(newTab);
+
+            newTable.className = 'tab-content';
+            document.getElementById('tab-content-list').appendChild(newTable);
+
+            changeTab(numTabs);
+        }
+
+        function changeTab(index) {
+            const tabs = document.getElementsByClassName("tab");
+            const tabContents = document.getElementsByClassName("tab-content");
+            // Скрываем все вкладки и удаляем класс "active"
+            for (let i = 0; i < tabs.length; i++) {
+                tabs[i].classList.remove("active");
+                tabContents[i].classList.remove("active");
+            }
+            // Отображаем выбранную вкладку и добавляем класс "active"
+            tabs[index].classList.add("active");
+            tabContents[index].classList.add("active");
+        }
+    </script>
+</body>
+
+</html>
